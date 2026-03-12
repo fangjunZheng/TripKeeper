@@ -1,0 +1,56 @@
+请使用以下 Design Style Guide 创建完整的 UI 原型：
+样式基调：清爽、现代、年轻，类似 Notion + 微信小程序
+颜色规范：主色 #3A5AFE，辅色 #7A8CFF，背景 #F6F7FB
+字体：中文用思源黑体，英文用 Inter
+组件：采用圆角 12px 卡片式布局，大量留白
+动效：轻动效 fade/slide，不超过 200ms
+图标：线性图标，2px 线宽
+1.司机录入信息系统
+请根据以下 IA 结构生成所有页面：
+1. 顶层导航结构（Toplevel Navigation）
+底部导航栏（Tab Bar）：
+Tab1：今日出车（表单）
+Tab2：当月总结
+Tab3：我的
+左上角头像入口（Global Profile Entry）：
+个人中心（Profile）
+历史记录（Historys）
+2. IA 全树状结构（Information Architecture Tree）
+2.1 首页（/home → 默认进入 Tab1）
+今日出车 通过图表记录司机当天出车数据
+司机名
+车牌号
+日期
+出发地
+目的地
+运输品类
+车数
+总吨数
+图片*2（出发地货运单，目的地收货单）
+当前状态 （运输中 已结束）
+2.2 当月总结（Tab2）
+通过柱状图来展示当月出车次数和时间 ，（点击具体柱状图可以展示司机录入信息）
+2.3 我的
+电话（通过电话登陆注册）
+姓名
+tabs： 全部 正在运输 运输完成
+3. 核心对象模型（Object Model）
+用于 AI 自动生成页面与交互的数据结构。
+DriverData（司机数据）
+driverName: String (司机名)
+licensePlate: String (车牌号)
+date: Date (日期)
+departureLocation: String (出发地)
+destination: String (目的地)
+cargoType: String (运输品类)
+numberOfLoads: Integer (车数)
+totalWeight: Float (总吨数)
+images: Array (图片列表，包括出发地货运单和目的地收货单)
+status: String (当前状态：运输中/已结束)
+
+ImageData（图片数据）
+
+imageURL: String (图片的网络地址或本地路径)
+uploadTime: Timestamp (上传时间)
+
+页面风格必须简洁不堆叠，模块之间要有 20px 以上留白

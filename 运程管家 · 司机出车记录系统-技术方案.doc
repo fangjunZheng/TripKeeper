@@ -1,0 +1,407 @@
+运程管家 · 司机出车记录系统 技术方案文档
+
+一、产品概述
+
+目标：为司机提供便捷的出车记录工具，同时为管理员提供统一查看与统计的后台。
+使用场景：
+- 司机：每天录入出车信息、查看当月统计、查看个人记录。
+- 管理员：按司机、时间、状态查看所有出车记录并做统计分析。
+
+二、UI 设计规范（Design Style Guide）
+
+整体风格：清爽、现代、年轻，类似 Notion + 微信小程序。
+颜色规范：
+- 主色：#3A5AFE
+- 辅色：#7A8CFF
+- 背景：#F6F7FB
+字体：
+- 中文：思源黑体（或 Noto Sans SC 替代）
+- 英文：Inter
+组件风格：
+- 圆角 12px（如 rounded-2xl）
+- 卡片式布局，大量留白，模块间距 ≥ 20px
+动效：
+- 轻动效 fade/slide，时长不超过 200ms
+- 通用：transition-all duration-200 ease-out
+图标：
+- 线性图标，线宽 2px
+
+三、信息架构（IA）与路由设计
+
+3.1 顶层导航结构
+
+登录页
+- /：电话登录/注册页（输入手机号 + 验证码）
+
+司机端主区域（带底部 TabBar）
+- /home：司机主 Layout，包含：
+  - 顶部：左上角头像入口
+  - 底部：TabBar（3 个 Tab）
+Tab 结构（均为 /home 下子路由）：
+- Tab1：今日出车（默认）
+  - 路由：/home/today
+  - 功能：录入和查看当天出车记录
+- Tab2：当月总结
+  - 路由：/home/monthly
+  - 功能：当月出车柱状图统计 & 单日详情
+- Tab3：我的
+  - 路由：/home/me
+  - 功能：个人资料 + 出车记录列表（按状态 Tab）
+
+全局头像入口
+- 左上角头像点击进入：
+  - /profile：个人中心（Profile）
+  - /history：历史记录（History）
+
+管理员端
+- /admin：管理员查看所有司机记录及统计的后台页面（仅管理员角色可访问）。
+
+3.2 详细 IA 树
+
+- / 登录
+- /home（Layout）
+  - /home/today 今日出车
+    - 今日数据概览
+    - 出车表单（含图片上传）
+    - 当天出车记录列表（可选）
+  - /home/monthly 当月总结
+    - 月份切换
+    - 出车柱状图（按天）
+    - 点击柱子 → 当日出车详情列表
+  - /home/me 我的
+    - 个人信息卡片（电话、姓名）
+    - Tabs：全部 / 正在运输 / 运输完成
+    - 出车记录列表
+- /profile 个人中心
+  - 编辑姓名等基础信息
+  - 账号设置、退出登录
+- /history 历史记录
+  - 按时间轴/列表查看历史出车
+  - 筛选条件（时间、状态等）
+- /admin 管理端后台
+  - 筛选：司机、时间范围、状态、出发地、目的地
+  - 表格展示所有匹配出车记录
+  - 统计卡片：总车数、总吨数等
+  - 查看单条记录详情+图片
+
+四、核心对象模型（数据结构）
+
+4.1 DriverData（司机出车数据）
+
+DriverData {
+  driverName: string        // 司机名
+  licensePlate: string      // 车牌号
+  date: Date                // 日期
+  departureLocation: string // 出发地
+  destination: string       // 目的地
+  cargoType: string         // 运输品类
+  numberOfLoads: number     // 车数
+  totalWeight: number       // 总吨数
+  images: ImageData[]       // 图片列表（出发地货运单 & 目的地收货单）
+  status: 'IN_TRANSIT' | 'COMPLETED' // 当前状态：运输中 / 已结束
+}
+
+4.2 ImageData（图片数据）
+
+ImageData {
+  imageURL: string    // 图片地址
+  uploadTime: Date    // 上传时间
+  type: 'DEPARTURE' | 'ARRIVAL' // 出发地单据 / 目的地单据
+}
+
+五、技术栈与项目结构
+
+5.1 技术选型
+
+- 前端/后端框架：Next.js 15 + TypeScript（App Router）
+- 语言：TypeScript 全面类型约束（前端组件、后端 API、Prisma 数据模型调用层统一使用 TS）
+- UI 组件库：shadcn/ui（基于 Radix UI + Tailwind CSS）
+- 样式：Tailwind CSS + 自定义主题色/圆角
+- 认证：基于手机号验证码登录 + Session/JWT
+- ORM：Prisma
+- 数据库：Supabase 托管的 PostgreSQL 实例（开发和生产保持同一类型数据库）
+- 文件存储：Cloudflare R2 / 阿里云 OSS / Supabase Storage / S3（Demo 可用本地）
+- 部署平台：Vercel（Next.js 官方推荐，生产环境统一部署在 Vercel）
+
+5.2 目录结构（示例）
+
+app/
+  layout.tsx
+  page.tsx                  # 登录页或重定向
+  api/
+    auth/
+      login/route.ts
+      verify-otp/route.ts
+      me/route.ts
+    trips/
+      create/route.ts
+      list/route.ts
+      summary/route.ts
+      upload-image/route.ts
+  home/
+    layout.tsx              # 顶部头像 + 底部 TabBar
+    page.tsx                # 重定向到 /home/today
+    today/
+      page.tsx
+    monthly/
+      page.tsx
+    me/
+      page.tsx
+  profile/
+    page.tsx
+  history/
+    page.tsx
+  admin/
+    page.tsx
+
+components/
+  ui/                       # shadcn 生成组件
+  layout/
+  trip/
+  charts/
+lib/
+  db/
+  auth/
+  validators/
+styles/
+  globals.css
+  tailwind.css
+
+六、数据库与 Prisma 模型设计
+
+6.1 用户模型（User）
+
+字段：
+- id：主键（cuid/uuid）
+- phone：手机号，唯一
+- name：姓名
+- role：DRIVER | ADMIN
+- createdAt / updatedAt
+
+6.2 出车记录（Trip）
+
+字段：
+- id
+- driverId（外键 → User）
+- driverName（冗余字段）
+- licensePlate
+- date
+- departureLocation
+- destination
+- cargoType
+- numberOfLoads
+- totalWeight
+- status：IN_TRANSIT | COMPLETED
+- createdAt / updatedAt
+
+6.3 图片记录（TripImage）
+
+字段：
+- id
+- tripId（外键 → Trip）
+- type：DEPARTURE | ARRIVAL
+- imageUrl
+- uploadTime
+
+6.4 Prisma Schema 示例（简化）
+
+model User {
+  id        String   @id @default(cuid())
+  phone     String   @unique
+  name      String?
+  role      Role     @default(DRIVER)
+  trips     Trip[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Trip {
+  id                String       @id @default(cuid())
+  driverId          String
+  driver            User         @relation(fields: [driverId], references: [id])
+  driverName        String
+  licensePlate      String
+  date              DateTime
+  departureLocation String
+  destination       String
+  cargoType         String
+  numberOfLoads     Int
+  totalWeight       Float
+  status            TripStatus   @default(IN_TRANSIT)
+  images            TripImage[]
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+}
+
+model TripImage {
+  id         String        @id @default(cuid())
+  tripId     String
+  trip       Trip          @relation(fields: [tripId], references: [id])
+  type       TripImageType
+  imageUrl   String
+  uploadTime DateTime      @default(now())
+}
+
+enum Role {
+  DRIVER
+  ADMIN
+}
+
+enum TripStatus {
+  IN_TRANSIT
+  COMPLETED
+}
+
+enum TripImageType {
+  DEPARTURE
+  ARRIVAL
+}
+
+七、认证与权限设计
+
+7.1 手机号验证码登录流程
+
+1. 用户在 / 输入手机号。
+2. 点击「获取验证码」：
+   - 调用 POST /api/auth/login
+   - 生成 4~6 位验证码存储（DB/缓存）
+   - 调用短信服务发送验证码（开发环境可直接返回在响应体中）。
+3. 用户输入验证码确认：
+   - 调用 POST /api/auth/verify-otp
+   - 校验成功 → 查找或创建 User（默认角色 DRIVER）
+   - 创建 Session / JWT，写入 HttpOnly Cookie。
+   - 跳转 /home。
+
+7.2 权限规则
+
+- 司机（DRIVER）
+  - 仅能访问/操作自己名下的 Trip。
+- 管理员（ADMIN）
+  - 可访问 /admin，查看所有司机 Trip。
+  - 可按司机、时间、状态筛选并查看汇总统计。
+
+八、核心页面交互设计
+
+8.1 /home/layout.tsx（司机主 Layout）
+
+- 顶部区域
+  - 左：头像（点击跳转 /profile 或打开抽屉）
+  - 右：当前日期 / 欢迎语
+- 内容区域
+  - 渲染当前 Tab 对应的子页面。
+- 底部 TabBar
+  - Tab1 今日出车 /home/today
+  - Tab2 当月总结 /home/monthly
+  - Tab3 我的 /home/me
+  - 选中高亮主色，带轻微动效。
+
+8.2 今日出车 /home/today
+
+- 今日概览卡片
+  - 今日出车次数、总吨数、运输中 / 已完成数量（小卡片 + 简单图表）。
+- 出车录入表单
+  - 字段：
+    - 司机名（默认当前登录用户，允许编辑）
+    - 车牌号
+    - 日期（默认今天）
+    - 出发地
+    - 目的地
+    - 运输品类
+    - 车数
+    - 总吨数
+    - 当前状态：运输中 / 已结束
+    - 图片上传（两块卡片：出发地货运单、目的地收货单）
+  - 提交：
+    - 调用 POST /api/trips/create
+    - 图片可先走 POST /api/trips/upload-image 获取 imageUrl 再提交。
+
+8.3 当月总结 /home/monthly
+
+- 月份选择控件
+  - 当前月份展示 + 左右切换或下拉选择。
+- 柱状图
+  - X 轴：1~31 号
+  - Y 轴：出车次数 / 总吨数
+  - 数据来源：GET /api/trips/summary?month=YYYY-MM
+- 单日详情
+  - 点击某个柱子：
+    - 下部或弹出列表展示该日所有 Trip 简要信息列表。
+    - 可进一步点击查看详情/图片（可使用 Modal/Drawer）。
+
+8.4 我的 /home/me
+
+- 个人信息卡
+  - 电话（只读）
+  - 姓名（可编辑）
+  - 角色（只读）
+- 出车状态 Tabs
+  - Tab：全部 / 正在运输 / 运输完成
+  - 数据由 GET /api/trips/list?status=... 获取。
+- 功能按钮
+  - 历史记录 → /history
+  - 退出登录 → 清除 Session/Cookie，重定向 /。
+
+8.5 管理端 /admin
+
+- 筛选区
+  - 司机下拉选择
+  - 时间范围选择
+  - 状态选择
+- 数据表格
+  - 列：司机名、车牌号、日期、出发地、目的地、品类、总吨数、状态
+  - 点击一行 → 右侧抽屉/Modal 显示详情 + 图片预览。
+- 统计区
+  - 当前筛选条件下总出车次数、总吨数、司机数量等。
+
+九、API 设计概览
+
+9.1 认证相关
+
+- POST /api/auth/login
+  - 入参：{ phone: string }
+  - 出参：{ success: boolean, devCode?: string }
+- POST /api/auth/verify-otp
+  - 入参：{ phone: string, code: string, name?: string }
+  - 行为：校验验证码 → 创建/更新用户 → 写入 cookie → 返回用户信息。
+- GET /api/auth/me
+  - 返回当前登录用户信息。
+
+9.2 出车记录相关
+
+- POST /api/trips/create
+  - 入参：DriverData（含 images 的 URL）
+  - 权限：司机登录后
+- POST /api/trips/upload-image
+  - 入参：multipart/form-data 文件
+  - 出参：{ imageUrl: string }
+- GET /api/trips/list
+  - Query 示例：
+    - status?：IN_TRANSIT / COMPLETED
+    - date?：指定日期
+    - driverId?：管理员用来筛选司机
+- GET /api/trips/summary
+  - Query：month=YYYY-MM
+  - 返回：当月每天的出车次数/总吨数，用于柱状图。
+
+十、部署方案
+
+1. 数据库
+   - 使用 Supabase 创建 PostgreSQL 实例（作为唯一数据库提供方）。
+   - 在 Supabase 项目中获取 connection string，设置为 DATABASE_URL 环境变量。
+
+2. 对象存储
+   - 选择 Cloudflare R2 / 阿里云 OSS / Supabase Storage / S3。
+   - 在 .env 中配置访问密钥和 Bucket 信息。
+
+3. 应用部署
+   - 项目推送到 Git 仓库（GitHub/GitLab）。
+   - 在 Vercel 新建项目，绑定该仓库，作为统一生产部署平台。
+   - 在 Vercel 环境变量中配置：
+      - DATABASE_URL（指向 Supabase PostgreSQL）
+      - NEXTAUTH_SECRET（或自定义 JWT 密钥）
+      - 短信服务相关秘钥。
+
+4. 域名
+   - 在 Vercel 面板绑定自定义域名，如 yuncheng-manager.com。
+   - 确保开启 HTTPS。
+
