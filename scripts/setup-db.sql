@@ -26,7 +26,7 @@ CREATE TABLE "Trip" (
     "driverName" TEXT NOT NULL,
     "licensePlate" TEXT NOT NULL,
     "date" TIMESTAMP(3) NOT NULL,
-    "departureLocation" STRING NOT NULL,
+    "departureLocation" TEXT NOT NULL,
     "destination" TEXT NOT NULL,
     "cargoType" TEXT NOT NULL,
     "numberOfLoads" INTEGER NOT NULL,
