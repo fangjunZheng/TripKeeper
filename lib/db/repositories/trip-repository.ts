@@ -20,6 +20,16 @@ export type DailySummary = {
   totalWeight: number;
 };
 
+export type AdminTripFilters = {
+  driverId?: string;
+  status?: TripStatus;
+  from?: Date;
+  to?: Date;
+  departureLocation?: string;
+  destination?: string;
+  limit?: number;
+};
+
 export const TripRepository = {
   async createTrip(data: CreateTripInput): Promise<Trip> {
     return prisma.trip.create({
@@ -82,6 +92,38 @@ export const TripRepository = {
       tripsCount: Number(r.trips_count),
       totalWeight: r.total_weight ?? 0,
     }));
+  },
+
+  async findAdminTrips(filters: AdminTripFilters = {}): Promise<Trip[]> {
+    const where: any = {};
+    if (filters.driverId) where.driverId = filters.driverId;
+    if (filters.status) where.status = filters.status;
+
+    if (filters.departureLocation) {
+      where.departureLocation = {
+        contains: filters.departureLocation,
+        mode: 'insensitive',
+      };
+    }
+    if (filters.destination) {
+      where.destination = {
+        contains: filters.destination,
+        mode: 'insensitive',
+      };
+    }
+
+    if (filters.from || filters.to) {
+      where.date = {
+        ...(filters.from ? { gte: filters.from } : {}),
+        ...(filters.to ? { lte: filters.to } : {}),
+      };
+    }
+
+    return prisma.trip.findMany({
+      where,
+      orderBy: { date: 'desc' },
+      take: filters.limit ?? 50,
+    });
   },
 };
 

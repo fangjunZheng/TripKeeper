@@ -30,21 +30,41 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: `Missing: ${missing.join(', ')}` }, { status: 400 });
     }
 
-    const date = new Date(body.date);
+    const driverId = body.driverId;
+    const driverName = body.driverName;
+    const licensePlate = body.licensePlate;
+    const departureLocation = body.departureLocation;
+    const destination = body.destination;
+    const cargoType = body.cargoType;
+    const numberOfLoads = body.numberOfLoads;
+    const totalWeight = body.totalWeight;
+
+    if (!driverId || !driverName || !licensePlate || !departureLocation || !destination || !cargoType) {
+      return NextResponse.json({ ok: false, error: 'Missing required string fields' }, { status: 400 });
+    }
+    if (numberOfLoads === undefined || totalWeight === undefined) {
+      return NextResponse.json({ ok: false, error: 'Missing: numberOfLoads/totalWeight' }, { status: 400 });
+    }
+
+    const dateStr = body.date;
+    if (!dateStr) {
+      return NextResponse.json({ ok: false, error: 'Missing: date' }, { status: 400 });
+    }
+    const date = new Date(dateStr);
     if (Number.isNaN(date.getTime())) {
       return NextResponse.json({ ok: false, error: 'Invalid date' }, { status: 400 });
     }
 
     const trip = await TripRepository.createTrip({
-      driverId: body.driverId,
-      driverName: body.driverName,
-      licensePlate: body.licensePlate,
+      driverId,
+      driverName,
+      licensePlate,
       date,
-      departureLocation: body.departureLocation,
-      destination: body.destination,
-      cargoType: body.cargoType,
-      numberOfLoads: body.numberOfLoads,
-      totalWeight: body.totalWeight,
+      departureLocation,
+      destination,
+      cargoType,
+      numberOfLoads,
+      totalWeight,
     });
 
     return NextResponse.json({ ok: true, trip });
