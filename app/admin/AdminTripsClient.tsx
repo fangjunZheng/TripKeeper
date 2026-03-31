@@ -13,6 +13,7 @@ type AdminTrip = {
   cargoType: string;
   totalWeight: number;
   status: "IN_TRANSIT" | "COMPLETED";
+  images: Array<{ id: string; type: "DEPARTURE" | "ARRIVAL"; imageUrl: string }>;
 };
 
 type AdminTripsClientProps = {
@@ -35,6 +36,29 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
   const [to, setTo] = useState<string>("");
   const [departureLocation, setDepartureLocation] = useState<string>("");
   const [destination, setDestination] = useState<string>("");
+
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState(0);
+  const [previewImages, setPreviewImages] = useState<AdminTrip["images"]>([]);
+
+  function openPreview(images: AdminTrip["images"], index: number) {
+    if (!images || images.length === 0) return;
+    setPreviewImages(images);
+    setPreviewIndex(Math.min(Math.max(index, 0), images.length - 1));
+    setPreviewOpen(true);
+  }
+
+  function closePreview() {
+    setPreviewOpen(false);
+  }
+
+  function prev() {
+    setPreviewIndex((i) => (i - 1 + previewImages.length) % previewImages.length);
+  }
+
+  function next() {
+    setPreviewIndex((i) => (i + 1) % previewImages.length);
+  }
 
   const isActive = useMemo(() => {
     return Boolean(
@@ -110,6 +134,7 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
       setTrips(
         (json.trips ?? []).map((x: any) => ({
           ...x,
+          images: x.images ?? [],
           date: typeof x.date === "string" ? x.date : new Date(x.date).toISOString(),
         })),
       );
@@ -259,6 +284,7 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
                 <th className="px-3 py-2 font-medium">日期</th>
                 <th className="px-3 py-2 font-medium">出发地</th>
                 <th className="px-3 py-2 font-medium">目的地</th>
+                  <th className="px-3 py-2 font-medium">图片预览</th>
                 <th className="px-3 py-2 font-medium">品类</th>
                 <th className="px-3 py-2 font-medium">总吨数</th>
                 <th className="px-3 py-2 font-medium">状态</th>
@@ -267,7 +293,7 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
             <tbody>
               {trips.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-3 py-6 text-center text-slate-400">
+                    <td colSpan={9} className="px-3 py-6 text-center text-slate-400">
                     暂无数据。
                   </td>
                 </tr>
@@ -279,6 +305,43 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
                     <td className="px-3 py-2 text-slate-700">{new Date(t.date).toISOString().slice(0, 10)}</td>
                     <td className="px-3 py-2 text-slate-700">{t.departureLocation}</td>
                     <td className="px-3 py-2 text-slate-700">{t.destination}</td>
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const depImgs = (t.images ?? []).filter((x) => x.type === "DEPARTURE");
+                          const show = depImgs.slice(0, 3);
+                          const rest = depImgs.length - show.length;
+                          if (depImgs.length === 0) {
+                            return <span className="text-slate-400">—</span>;
+                          }
+                          return (
+                            <div className="flex items-center gap-1">
+                              {show.map((img, idx) => (
+                                <button
+                                  key={img.id}
+                                  type="button"
+                                  onClick={() => openPreview(depImgs, idx)}
+                                  className="relative"
+                                >
+                                  <img
+                                    src={img.imageUrl}
+                                    alt=""
+                                    className="h-10 w-10 rounded-lg border border-slate-100 object-cover"
+                                  />
+                                </button>
+                              ))}
+                              {rest > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => openPreview(depImgs, show.length)}
+                                  className="h-10 w-10 rounded-lg border border-slate-100 bg-slate-50 text-[10px] text-slate-500"
+                                >
+                                  +{rest}
+                                </button>
+                              )}
+                            </div>
+                          );
+                        })()}
+                      </td>
                     <td className="px-3 py-2 text-slate-700">{t.cargoType}</td>
                     <td className="px-3 py-2 text-slate-700">{t.totalWeight}</td>
                     <td className="px-3 py-2">
@@ -299,6 +362,51 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
           </table>
         </div>
       </section>
+
+      {previewOpen && previewImages.length > 0 && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-black/80">
+          <div className="flex items-center justify-between gap-3 px-4 py-3">
+            <div className="text-xs font-medium text-white/90">
+              {previewIndex + 1}/{previewImages.length}
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-full border-white/20 bg-white/10 px-4 text-xs text-white hover:bg-white/15"
+                onClick={prev}
+              >
+                上一张
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="h-9 rounded-full border-white/20 bg-white/10 px-4 text-xs text-white hover:bg-white/15"
+                onClick={next}
+              >
+                下一张
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                className="h-9 rounded-full px-3 text-xs text-white hover:bg-white/15"
+                onClick={closePreview}
+              >
+                关闭
+              </Button>
+            </div>
+          </div>
+          <div className="flex-1 p-4">
+            <div className="flex h-full items-center justify-center">
+              <img
+                src={previewImages[previewIndex]?.imageUrl}
+                alt=""
+                className="max-h-[80vh] max-w-full rounded-lg border border-white/10 object-contain"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

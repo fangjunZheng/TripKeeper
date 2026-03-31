@@ -2,24 +2,31 @@
 
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function AdminLoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const router = useRouter();
+
+  function showToast(type: "success" | "error", text: string) {
+    setToast({ type, text });
+    window.setTimeout(() => setToast(null), 2500);
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
     if (err === "forbidden") {
-      setMessage("需要管理员权限，请使用 admin/admin 登录。");
+      showToast("error", "需要管理员权限，请使用 admin/admin 登录。");
     }
   }, []);
 
   async function handleLogin() {
     setLoading(true);
-    setMessage(null);
+    setToast(null);
     try {
       const res = await fetch("/api/admin/login", {
         method: "POST",
@@ -30,10 +37,10 @@ export default function AdminLoginPage() {
       if (!res.ok || !data.ok) {
         throw new Error(data.error ?? "登录失败");
       }
-      setMessage("登录成功，正在跳转...");
-      window.location.href = "/admin";
+      showToast("success", "登录成功");
+      router.push("/admin");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "登录失败");
+      showToast("error", error instanceof Error ? error.message : "登录失败");
     } finally {
       setLoading(false);
     }
@@ -41,6 +48,19 @@ export default function AdminLoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-slate-50 px-4">
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className={
+            toast.type === "success"
+              ? "fixed right-4 top-4 z-50 rounded-xl bg-emerald-600 px-4 py-2 text-sm text-white shadow-lg"
+              : "fixed right-4 top-4 z-50 rounded-xl bg-rose-600 px-4 py-2 text-sm text-white shadow-lg"
+          }
+        >
+          {toast.text}
+        </div>
+      )}
       <div className="w-full max-w-sm rounded-3xl bg-white px-6 py-8 shadow-sm ring-1 ring-slate-100">
         <div className="mb-6">
           <p className="text-xs font-medium tracking-wide text-primary">
@@ -91,11 +111,6 @@ export default function AdminLoginPage() {
             </Button>
           </div>
 
-          {message && (
-            <p className="text-xs text-red-500">
-              {message}
-            </p>
-          )}
         </div>
       </div>
     </main>

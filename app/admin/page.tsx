@@ -24,6 +24,7 @@ export default async function AdminPage() {
     cargoType: string;
     totalWeight: number;
     status: "IN_TRANSIT" | "COMPLETED";
+    images: Array<{ id: string; type: "DEPARTURE" | "ARRIVAL"; imageUrl: string }>;
   }> = [];
 
   try {

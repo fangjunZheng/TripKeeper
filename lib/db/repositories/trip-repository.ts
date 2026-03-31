@@ -1,4 +1,4 @@
-import { TripStatus, type Trip } from '@prisma/client';
+import { TripImageType, TripStatus, type Trip } from '@prisma/client';
 import { prisma } from '@/lib/db/client';
 
 export type CreateTripInput = {
@@ -18,6 +18,20 @@ export type DailySummary = {
   date: string; // YYYY-MM-DD
   tripsCount: number;
   totalWeight: number;
+};
+
+export type AdminTripImagePreview = {
+  id: string;
+  type: TripImageType;
+  imageUrl: string;
+};
+
+export type AdminTripWithImages = Omit<Trip, 'images'> & {
+  images: AdminTripImagePreview[];
+};
+
+export type DriverTripWithImages = Omit<Trip, 'images'> & {
+  images: AdminTripImagePreview[];
 };
 
 export type AdminTripFilters = {
@@ -61,6 +75,25 @@ export const TripRepository = {
     });
   },
 
+  async findTripDetailByIdForDriver(tripId: string, driverId: string): Promise<DriverTripWithImages | null> {
+    return (await prisma.trip.findFirst({
+      where: {
+        id: tripId,
+        driverId,
+      },
+      include: {
+        images: {
+          select: {
+            id: true,
+            type: true,
+            imageUrl: true,
+          },
+          orderBy: { uploadTime: 'asc' },
+        },
+      },
+    })) as DriverTripWithImages | null;
+  },
+
   async getMonthlySummary(driverId: string, month: string): Promise<DailySummary[]> {
     // month: "YYYY-MM"
     const [yearStr, monthStr] = month.split('-');
@@ -94,7 +127,7 @@ export const TripRepository = {
     }));
   },
 
-  async findAdminTrips(filters: AdminTripFilters = {}): Promise<Trip[]> {
+  async findAdminTrips(filters: AdminTripFilters = {}): Promise<AdminTripWithImages[]> {
     const where: any = {};
     if (filters.driverId) where.driverId = filters.driverId;
     if (filters.status) where.status = filters.status;
@@ -119,11 +152,20 @@ export const TripRepository = {
       };
     }
 
-    return prisma.trip.findMany({
+    return (await prisma.trip.findMany({
       where,
       orderBy: { date: 'desc' },
       take: filters.limit ?? 50,
-    });
+      include: {
+        images: {
+          select: {
+            id: true,
+            type: true,
+            imageUrl: true,
+          },
+        },
+      },
+    })) as AdminTripWithImages[];
   },
 };
 

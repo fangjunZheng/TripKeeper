@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 type Trip = {
   id: string;
@@ -57,8 +58,12 @@ export default function TodayPage() {
     status: "IN_TRANSIT" as "IN_TRANSIT" | "COMPLETED",
   });
 
+  const [departureDocFiles, setDepartureDocFiles] = useState<File[]>([]);
+
   const [submitLoading, setSubmitLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+  const [departureFileInputKey, setDepartureFileInputKey] = useState(0);
 
   // 当获取到当前用户信息后，只在初始为空时填充司机姓名
   useEffect(() => {
@@ -144,7 +149,7 @@ export default function TodayPage() {
     try {
       const numberOfLoads = Number(form.numberOfLoads);
       const totalWeight = Number(form.totalWeight);
-      if (!Number.isFinite(numberOfLoads) || !Number.isFinite(totalWeight)) {
+      if (!Number.isFinite(numberOfLoads) || !Number.isFinite(totalWeight) || totalWeight <= 0) {
         throw new Error("车数/总吨数必须是数字");
       }
 
@@ -172,8 +177,47 @@ export default function TodayPage() {
         throw new Error(errMsg);
       }
 
-      setMessage("创建成功");
+      const tripId = json.trip.id;
+
+      // 上传图片到数据库（先拿 tripId，再写入 TripImage）
+      if (departureDocFiles.length > 0) {
+        const uploads = departureDocFiles.map(async (file) => {
+          const fd = new FormData();
+          fd.append("tripId", tripId);
+          fd.append("type", "DEPARTURE");
+          fd.append("file", file, file.name);
+
+          const r = await fetch("/api/trips/upload-image", {
+            method: "POST",
+            body: fd,
+          });
+          const j = await r.json();
+          if (!r.ok || !j.ok) {
+            const errMsg = !j.ok ? j.error : "图片上传失败";
+            throw new Error(errMsg);
+          }
+        });
+
+        await Promise.all(uploads);
+      }
+
       await fetchTrips();
+      setMessage(null);
+      setToast("录入成功");
+      setDepartureDocFiles([]);
+      setDepartureFileInputKey((k) => k + 1);
+      setForm({
+        driverName: "",
+        licensePlate: "",
+        date: todayYmd,
+        departureLocation: "",
+        destination: "",
+        cargoType: "",
+        numberOfLoads: "1",
+        totalWeight: "",
+        status: "IN_TRANSIT",
+      });
+      window.setTimeout(() => setToast(null), 2500);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "创建失败");
       await fetchMe();
@@ -184,6 +228,15 @@ export default function TodayPage() {
 
   return (
     <div className="space-y-4 pb-2">
+      {toast && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed right-4 top-4 z-50 rounded-xl bg-slate-900 px-4 py-2 text-sm text-white shadow-lg"
+        >
+          {toast}
+        </div>
+      )}
       <div className="rounded-3xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-100">
         <div className="flex items-start justify-between gap-3">
           <div>
@@ -354,6 +407,31 @@ export default function TodayPage() {
             />
           </div>
 
+            <div className="space-y-1.5">
+              <label className="block text-xs font-medium text-slate-700">
+                出车单图片（可多张）
+              </label>
+              <input
+                key={departureFileInputKey}
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={(e) => {
+                  const next = e.target.files ? Array.from(e.target.files) : [];
+                  setDepartureDocFiles(next);
+                }}
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+              />
+              <p className="text-[11px] leading-relaxed text-slate-500">
+                选择后会上传到数据库，并在管理员列表中展示预览。
+              </p>
+              {departureDocFiles.length > 0 && (
+                <p className="text-[11px] text-slate-600">
+                  已选择 {departureDocFiles.length} 张图片
+                </p>
+              )}
+            </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-slate-700">
@@ -427,7 +505,11 @@ export default function TodayPage() {
 
           <div className="mt-4 space-y-3">
             {trips.map((t) => (
-              <div key={t.id} className="rounded-xl border border-slate-100 p-3">
+              <Link
+                key={t.id}
+                href={`/home/today/${t.id}`}
+                className="block rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 hover:bg-slate-50/40"
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <p className="text-sm font-medium text-slate-900">
@@ -461,7 +543,7 @@ export default function TodayPage() {
                     </p>
                   </div>
                 </div>
-              </div>
+              </Link>
             ))}
           </div>
         </div>
