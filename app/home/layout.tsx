@@ -30,6 +30,12 @@ export default function HomeLayout({
 }) {
   const pathname = usePathname();
   const [me, setMe] = useState<MeResponse | null>(null);
+  /** 避免 SSR 与客户端时区不一致导致 hydration mismatch */
+  const [todayLabel, setTodayLabel] = useState("");
+
+  useEffect(() => {
+    setTodayLabel(formatTodayLabel());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -74,7 +80,7 @@ export default function HomeLayout({
           <div className="text-right">
             <p className="text-[10px] text-slate-400">今天</p>
             <p className="text-xs font-medium text-slate-700">
-              {formatTodayLabel()}
+              {todayLabel || "\u00a0"}
             </p>
           </div>
         </div>

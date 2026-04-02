@@ -275,19 +275,19 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
         <h2 className="text-sm font-semibold text-slate-900">出车记录表格</h2>
         <p className="mt-1 text-xs text-slate-500">显示符合条件的 Trip 记录。</p>
 
-        <div className="mt-4 overflow-x-auto">
-          <table className="min-w-full border-collapse text-left text-xs">
+        <div className="mt-4 -mx-5 touch-pan-x overflow-x-auto px-5 sm:mx-0 sm:px-0">
+          <table className="w-full min-w-[900px] border-collapse text-left text-xs">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-slate-500">
-                <th className="px-3 py-2 font-medium">司机</th>
-                <th className="px-3 py-2 font-medium">车牌号</th>
-                <th className="px-3 py-2 font-medium">日期</th>
-                <th className="px-3 py-2 font-medium">出发地</th>
-                <th className="px-3 py-2 font-medium">目的地</th>
-                  <th className="px-3 py-2 font-medium">图片预览</th>
-                <th className="px-3 py-2 font-medium">品类</th>
-                <th className="px-3 py-2 font-medium">总吨数</th>
-                <th className="px-3 py-2 font-medium">状态</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">司机</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">车牌号</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">日期</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">出发地</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">目的地</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">图片预览</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">品类</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">总吨数</th>
+                <th className="whitespace-nowrap px-3 py-2 font-medium">状态</th>
               </tr>
             </thead>
             <tbody>

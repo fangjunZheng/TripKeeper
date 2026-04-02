@@ -37,8 +37,6 @@ function formatYmd(d: Date): string {
 }
 
 export default function TodayPage() {
-  const todayYmd = useMemo(() => formatYmd(new Date()), []);
-
   const [me, setMe] = useState<MeResponse | null>(null);
   const [meLoading, setMeLoading] = useState(true);
 
@@ -49,7 +47,7 @@ export default function TodayPage() {
   const [form, setForm] = useState({
     driverName: "",
     licensePlate: "",
-    date: todayYmd,
+    date: "",
     departureLocation: "",
     destination: "",
     cargoType: "",
@@ -64,6 +62,11 @@ export default function TodayPage() {
   const [message, setMessage] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [departureFileInputKey, setDepartureFileInputKey] = useState(0);
+
+  // 客户端挂载后再写入「今天」，避免与 SSR 时区不一致导致 hydration 报错
+  useEffect(() => {
+    setForm((s) => ({ ...s, date: formatYmd(new Date()) }));
+  }, []);
 
   // 当获取到当前用户信息后，只在初始为空时填充司机姓名
   useEffect(() => {
@@ -209,7 +212,7 @@ export default function TodayPage() {
       setForm({
         driverName: "",
         licensePlate: "",
-        date: todayYmd,
+        date: formatYmd(new Date()),
         departureLocation: "",
         destination: "",
         cargoType: "",
@@ -244,7 +247,9 @@ export default function TodayPage() {
               今日出车
             </h1>
             <p className="mt-1 text-xs text-slate-500">
-              {todayYmd} · 录入并查看今天的出车记录
+              {form.date
+                ? `${form.date} · 录入并查看今天的出车记录`
+                : "录入并查看今天的出车记录"}
             </p>
           </div>
           <Button
@@ -278,7 +283,7 @@ export default function TodayPage() {
         )}
 
         {!meLoading && me && me.ok && (
-          <div className="mt-4 grid grid-cols-2 gap-3">
+          <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="rounded-2xl bg-slate-50 p-3">
               <p className="text-xs font-medium text-slate-500">今日趟次</p>
               <p className="mt-1 text-lg font-semibold text-slate-900">
@@ -322,7 +327,7 @@ export default function TodayPage() {
                 司机姓名
               </label>
               <input
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm text-slate-500 outline-none"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base text-slate-500 outline-none"
                 value={form.driverName}
                 readOnly
                 placeholder="从当前登录用户读取"
@@ -334,21 +339,21 @@ export default function TodayPage() {
               车牌号
             </label>
             <input
-              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
               value={form.licensePlate}
               onChange={(e) => setForm((s) => ({ ...s, licensePlate: e.target.value }))}
               placeholder="例如：晋123456"
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-slate-700">
                 日期
               </label>
               <input
                 type="date"
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                className="block w-full max-w-[12rem] rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary sm:max-w-none"
                 value={form.date}
                 onChange={(e) => setForm((s) => ({ ...s, date: e.target.value }))}
               />
@@ -358,7 +363,7 @@ export default function TodayPage() {
                 状态
               </label>
               <select
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
                 value={form.status}
                 onChange={(e) =>
                   setForm((s) => ({
@@ -378,7 +383,7 @@ export default function TodayPage() {
               出发地
             </label>
             <input
-              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
               value={form.departureLocation}
               onChange={(e) => setForm((s) => ({ ...s, departureLocation: e.target.value }))}
             />
@@ -389,7 +394,7 @@ export default function TodayPage() {
               目的地
             </label>
             <input
-              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
               value={form.destination}
               onChange={(e) => setForm((s) => ({ ...s, destination: e.target.value }))}
             />
@@ -400,7 +405,7 @@ export default function TodayPage() {
               运输品类
             </label>
             <input
-              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+              className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
               value={form.cargoType}
               onChange={(e) => setForm((s) => ({ ...s, cargoType: e.target.value }))}
               placeholder="例如：砂石 / 煤 / 钢材"
@@ -420,7 +425,7 @@ export default function TodayPage() {
                   const next = e.target.files ? Array.from(e.target.files) : [];
                   setDepartureDocFiles(next);
                 }}
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
               />
               <p className="text-[11px] leading-relaxed text-slate-500">
                 选择后会上传到数据库，并在管理员列表中展示预览。
@@ -432,14 +437,14 @@ export default function TodayPage() {
               )}
             </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
               <label className="block text-xs font-medium text-slate-700">
                 车数
               </label>
               <input
                 inputMode="numeric"
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
                 value={form.numberOfLoads}
                 onChange={(e) => setForm((s) => ({ ...s, numberOfLoads: e.target.value }))}
               />
@@ -450,7 +455,7 @@ export default function TodayPage() {
               </label>
               <input
                 inputMode="decimal"
-                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+                className="block w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-base outline-none transition focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
                 value={form.totalWeight}
                 onChange={(e) => setForm((s) => ({ ...s, totalWeight: e.target.value }))}
               />
@@ -529,7 +534,7 @@ export default function TodayPage() {
                     {t.status === "COMPLETED" ? "完成" : "运输中"}
                   </span>
                 </div>
-                <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
+                <div className="mt-3 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
                   <div className="rounded-lg bg-slate-50 p-2">
                     <p className="text-slate-500">车数</p>
                     <p className="mt-1 font-medium text-slate-900">

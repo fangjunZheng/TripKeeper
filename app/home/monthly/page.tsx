@@ -21,13 +21,19 @@ function getCurrentMonth() {
 }
 
 export default function MonthlyPage() {
-  const [month, setMonth] = useState(getCurrentMonth());
+  const [month, setMonth] = useState("");
+
+  useEffect(() => {
+    setMonth(getCurrentMonth());
+  }, []);
   const [data, setData] = useState<DailySummary[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!month) return;
+
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -82,7 +88,7 @@ export default function MonthlyPage() {
           </div>
           <input
             type="month"
-            className="h-9 rounded-xl border border-slate-200 bg-slate-50 px-2 text-xs outline-none focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
+            className="h-10 rounded-xl border border-slate-200 bg-slate-50 px-3 text-base outline-none focus:border-primary focus:bg-white focus:ring-1 focus:ring-primary"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
           />
