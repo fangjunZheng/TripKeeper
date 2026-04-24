@@ -13,8 +13,16 @@ export default function LoginPage() {
   const [devCode, setDevCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [countdown, setCountdown] = useState(0);
 
   async function handleSendCode() {
+    if (!phone || !/^1[3-9]\d{9}$/.test(phone)) {
+      setMessage("请输入正确的手机号");
+      return;
+    }
+
+    if (countdown > 0) return;
+
     setLoading(true);
     setMessage(null);
     try {
@@ -27,7 +35,18 @@ export default function LoginPage() {
       });
 
       const data = await res.json();
-      if (!res.ok || !data.ok) {
+      if (res.ok) {
+        setCountdown(60);
+        const timer = setInterval(() => {
+          setCountdown((prev) => {
+            if (prev <= 1) {
+              clearInterval(timer);
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
+      } else if (!res.ok || !data.ok) {
         throw new Error(data.error ?? "发送验证码失败");
       }
 
@@ -41,7 +60,10 @@ export default function LoginPage() {
   }
 
   async function handleVerify() {
-    setLoading(true);
+    // if (!code || !/^d{6}$/.test(code)) {
+    //   setMessage("请输入正确的验证码");
+    //   return;
+    // }
     setMessage(null);
     try {
       const res = await fetch("/api/auth/verify-otp", {

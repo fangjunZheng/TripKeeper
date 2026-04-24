@@ -11,6 +11,12 @@
     "prisma:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "@alicloud/darabonba-env": "^1.0.0",
+    "@alicloud/dypnsapi20170525": "^2.0.0",
+    "@alicloud/openapi-client": "^0.4.15",
+    "@alicloud/tea-console": "^1.0.0",
+    "@alicloud/tea-typescript": "^1.8.0",
+    "@alicloud/tea-util": "^1.4.11",
     "@prisma/client": "^6.0.0",
     "@radix-ui/react-slot": "^1.1.0",
     "class-variance-authority": "^0.7.0",
