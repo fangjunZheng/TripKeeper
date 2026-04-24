@@ -19,7 +19,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const { phone, code, name } = parsed.data;
+    const { phone, code } = parsed.data;
 
     const isDevelopment = process.env.NODE_ENV === 'development';
     const enableRealSmsInDev = process.env.ENABLE_REAL_SMS_IN_DEV === 'true';
@@ -34,8 +34,8 @@ export async function POST(request: Request) {
         return NextResponse.json({ ok: false, error: verification.message }, { status: 400 });
       }
     }
-
-    const user = await AuthService.findOrCreateUserByPhone(phone, name);
+    
+    const user = await AuthService.findOrCreateUserByPhone(phone);
 
     await createSession(user, 'driver');
 
