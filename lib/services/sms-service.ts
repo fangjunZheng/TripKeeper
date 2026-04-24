@@ -13,7 +13,6 @@ function createClient(): Dypnsapi {
   const config = new $OpenApi.Config({
     accessKeyId: smsConfig.accessKeyId,
     accessKeySecret: smsConfig.accessKeySecret,
-    endpoint: smsConfig.endpoint
   });
   return new Dypnsapi(config);
 }
@@ -43,7 +42,7 @@ export const SmsService = {
           success: true,
           message: '短信发送成功',
           code: response.body.verifyCode,
-          requestId: response.body.requestId
+          requestId: response.body.requestId,
         };
       } else {
         return {
@@ -67,18 +66,26 @@ export const SmsService = {
       const request = new $Dypnsapi.CheckSmsVerifyCodeRequest({
         phoneNumber: phone,
         verifyCode: verifyCode,
-        caseAuthPolicy: 0,
-        countryCode: 'cn',
+        caseAuthPolicy: 1,
+        countryCode: '86',
         outId: 'driver-trip-log-system',
       });
-      
+
       const response = await client.checkSmsVerifyCode(request);
       console.log('阿里云 API 完整响应:', response);
       
       if (response.body?.code === 'OK') {
-        return { valid: true, message: '验证成功' };
+        const verifyResult = response.body.model?.verifyResult;
+        if (verifyResult === 'PASS') {
+          return { valid: true, message: '验证成功' };
+        } else {
+          return { valid: false, message: '验证码不正确或已过期' };
+        }
       } else {
-        return { valid: false, message: response.body?.message || '验证失败' };
+        return {
+          valid: false,
+          message: response.body?.message || '验证失败',
+        };
       }
     } catch (error) {
       console.error('验证码核验失败:', error);
