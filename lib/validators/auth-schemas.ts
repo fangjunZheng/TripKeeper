@@ -18,11 +18,6 @@ export const verifyOtpRequestSchema = z.object({
     .string()
     .min(4, '验证码太短')
     .max(8, '验证码太长'),
-  name: z
-    .string()
-    .min(1, '姓名不能为空')
-    .max(50, '姓名太长')
-    .optional(),
 });
 
 export type LoginRequestInput = z.infer<typeof loginRequestSchema>;

@@ -13,6 +13,7 @@ function createClient(): Dypnsapi {
   const config = new $OpenApi.Config({
     accessKeyId: smsConfig.accessKeyId,
     accessKeySecret: smsConfig.accessKeySecret,
+    endpoint: smsConfig.endpoint
   });
   return new Dypnsapi(config);
 }
@@ -65,7 +66,10 @@ export const SmsService = {
       const client = createClient();
       const request = new $Dypnsapi.CheckSmsVerifyCodeRequest({
         phoneNumber: phone,
-        smsCode: verifyCode,
+        verifyCode: verifyCode,
+        caseAuthPolicy: 0,
+        countryCode: 'cn',
+        outId: 'driver-trip-log-system',
       });
       
       const response = await client.checkSmsVerifyCode(request);
