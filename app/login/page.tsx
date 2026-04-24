@@ -227,15 +227,6 @@ export default function LoginPage() {
             <p className="text-sm font-medium text-emerald-600">
               登录成功！
             </p>
-            {message && (
-              <p className="text-xs text-slate-700">
-                {message}
-              </p>
-            )}
-            <p className="text-xs text-slate-500">
-              你现在可以在浏览器中直接访问 <code>/api/auth/me</code> 或后续需要登录
-              的页面，验证会话是否生效。
-            </p>
           </div>
         )}
       </div>
