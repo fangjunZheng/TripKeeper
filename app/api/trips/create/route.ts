@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guards';
 import { TripService } from '@/lib/services/trip-service';
 import { createTripRequestSchema } from '@/lib/validators/trip-schemas';
+import { handleApiError } from '@/lib/api/handle-error';
 
 export async function POST(request: Request) {
   try {
@@ -27,10 +28,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ ok: true, trip });
   } catch (error) {
-    const status = (error as any)?.status ?? 500;
-    const message =
-      error instanceof Error ? error.message : status === 401 ? 'Unauthorized' : 'Unknown error';
-    return NextResponse.json({ ok: false, error: message }, { status });
+    return handleApiError(error);
   }
 }
 

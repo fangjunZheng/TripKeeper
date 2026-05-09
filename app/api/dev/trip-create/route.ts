@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import { TripRepository } from '@/lib/db/repositories/trip-repository';
+import { devEnvGuard } from '@/lib/utils/dev-guard';
 
 export async function POST(request: Request) {
+  const guard = devEnvGuard();
+  if (guard) return guard;
+
   try {
     const body = (await request.json()) as {
       driverId?: string;

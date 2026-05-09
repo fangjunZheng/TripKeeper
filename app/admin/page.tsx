@@ -3,32 +3,23 @@ import { Role } from "@prisma/client";
 import { getUserFromRequest } from "@/lib/auth/session";
 import { TripRepository } from "@/lib/db/repositories/trip-repository";
 import AdminTripsClient from "./AdminTripsClient";
+import type { AdminTripItem } from "@/types/api";
+
+type AdminTripForClient = AdminTripItem & { date: string };
 
 export default async function AdminPage() {
   const user = await getUserFromRequest('admin');
   if (!user) {
     redirect("/admin/login");
   }
-  // 防止普通司机访问时直接抛错导致 500
   if (user.role !== Role.ADMIN) {
     redirect("/admin/login?error=forbidden");
   }
 
-  let trips: Array<{
-    id: string;
-    driverName: string;
-    licensePlate: string;
-    date: string; // serialize for client
-    departureLocation: string;
-    destination: string;
-    cargoType: string;
-    totalWeight: number;
-    status: "IN_TRANSIT" | "COMPLETED";
-    images: Array<{ id: string; type: "DEPARTURE" | "ARRIVAL"; imageUrl: string }>;
-  }> = [];
+  let trips: AdminTripForClient[] = [];
 
   try {
-    const raw = await TripRepository.findAdminTrips({ limit: 50 });
+    const { trips: raw } = await TripRepository.findAdminTrips({ pageSize: 50 });
     trips = raw.map((t) => ({
       ...t,
       date: t.date.toISOString(),

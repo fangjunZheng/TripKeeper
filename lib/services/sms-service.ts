@@ -9,18 +9,24 @@ interface SmsResult {
   requestId?: string;
 }
 
-function createClient(): Dypnsapi {
-  const config = new $OpenApi.Config({
-    accessKeyId: smsConfig.accessKeyId,
-    accessKeySecret: smsConfig.accessKeySecret,
-  });
-  return new Dypnsapi(config);
+/** 模块级单例，避免每次请求重新初始化 SDK 客户端。 */
+let _client: Dypnsapi | null = null;
+
+function getClient(): Dypnsapi {
+  if (!_client) {
+    const config = new $OpenApi.Config({
+      accessKeyId: smsConfig.accessKeyId,
+      accessKeySecret: smsConfig.accessKeySecret,
+    });
+    _client = new Dypnsapi(config);
+  }
+  return _client;
 }
 
 export const SmsService = {
   async sendSmsVerifyCode(phone: string): Promise<SmsResult> {
     try {
-      const client = createClient();
+      const client = getClient();
       const request = new $Dypnsapi.SendSmsVerifyCodeRequest({
         phoneNumber: phone,
         signName: smsConfig.signName,
@@ -35,8 +41,7 @@ export const SmsService = {
       });
 
       const response = await client.sendSmsVerifyCode(request);
-      console.log('阿里云 API 完整响应:', response);
-      
+
       if (response.body?.code === 'OK') {
         return {
           success: true,
@@ -60,9 +65,12 @@ export const SmsService = {
     }
   },
 
-  async checkSmsVerifyCode(phone: string, verifyCode: string): Promise<{ valid: boolean; message: string }> {
+  async checkSmsVerifyCode(
+    phone: string,
+    verifyCode: string,
+  ): Promise<{ valid: boolean; message: string }> {
     try {
-      const client = createClient();
+      const client = getClient();
       const request = new $Dypnsapi.CheckSmsVerifyCodeRequest({
         phoneNumber: phone,
         verifyCode: verifyCode,
@@ -72,8 +80,7 @@ export const SmsService = {
       });
 
       const response = await client.checkSmsVerifyCode(request);
-      console.log('阿里云 API 完整响应:', response);
-      
+
       if (response.body?.code === 'OK') {
         const verifyResult = response.body.model?.verifyResult;
         if (verifyResult === 'PASS') {

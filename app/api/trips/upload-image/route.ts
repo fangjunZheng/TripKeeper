@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { put } from "@vercel/blob";
 import { requireAuth } from "@/lib/auth/guards";
 import { TripImageRepository } from "@/lib/db/repositories/trip-image-repository";
 import { TripImageType } from "@prisma/client";
@@ -14,6 +15,8 @@ function toTripImageType(value: string | null): TripImageType | null {
   return value;
 }
 
+const MAX_BYTES = 5 * 1024 * 1024; // 5 MB
+
 export async function POST(request: Request) {
   try {
     const currentUser = await requireAuth("driver");
@@ -27,23 +30,26 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "tripId is required" }, { status: 400 });
     }
     if (!type) {
-      return NextResponse.json({ ok: false, error: "type is required" }, { status: 400 });
+      return NextResponse.json({ ok: false, error: "type 必须为 DEPARTURE 或 ARRIVAL" }, { status: 400 });
     }
-    if (!fileEntry || typeof (fileEntry as any).arrayBuffer !== "function") {
+    if (!fileEntry || typeof (fileEntry as File).arrayBuffer !== "function") {
       return NextResponse.json({ ok: false, error: "file is required" }, { status: 400 });
     }
 
     const file = fileEntry as File;
 
-    // MVP 限制大小，避免一次性塞太多数据到 DB
-    const maxBytes = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxBytes) {
+    if (file.size > MAX_BYTES) {
       return NextResponse.json(
-        { ok: false, error: `文件过大（最大 ${Math.floor(maxBytes / 1024 / 1024)}MB）` },
+        { ok: false, error: `文件过大（最大 ${MAX_BYTES / 1024 / 1024}MB）` },
         { status: 400 },
       );
     }
 
+    if (!file.type.startsWith("image/")) {
+      return NextResponse.json({ ok: false, error: "只允许上传图片文件" }, { status: 400 });
+    }
+
+    // 确认该 trip 属于当前司机
     const trip = await prisma.trip.findUnique({
       where: { id: tripId },
       select: { driverId: true },
@@ -55,22 +61,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: "Forbidden" }, { status: 403 });
     }
 
-    const mimeType = file.type || "application/octet-stream";
-    const buffer = Buffer.from(await file.arrayBuffer());
-    const base64 = buffer.toString("base64");
-    const imageUrl = `data:${mimeType};base64,${base64}`;
+    // 上传到 Vercel Blob，路径：trip-images/{tripId}/{type}-{timestamp}.{ext}
+    const ext = file.name.split(".").pop() ?? "jpg";
+    const blobPath = `trip-images/${tripId}/${type}-${Date.now()}.${ext}`;
+
+    const blob = await put(blobPath, file, {
+      access: "public",
+      contentType: file.type,
+    });
 
     const image = await TripImageRepository.createImage({
       tripId,
       type,
-      imageUrl,
+      imageUrl: blob.url,
     });
 
     return NextResponse.json({ ok: true, image });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
-    const status = (error as any)?.status ?? 500;
+    const status = (error as { status?: number })?.status ?? 500;
     return NextResponse.json({ ok: false, error: message }, { status });
   }
 }
-

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guards';
 import { TripRepository } from '@/lib/db/repositories/trip-repository';
+import { handleApiError } from '@/lib/api/handle-error';
 
 export async function GET(
   _request: Request,
@@ -21,10 +22,7 @@ export async function GET(
 
     return NextResponse.json({ ok: true, trip });
   } catch (error) {
-    const status = (error as { status?: number })?.status ?? 500;
-    const message =
-      error instanceof Error ? error.message : status === 401 ? 'Unauthorized' : 'Unknown error';
-    return NextResponse.json({ ok: false, error: message }, { status });
+    return handleApiError(error);
   }
 }
 

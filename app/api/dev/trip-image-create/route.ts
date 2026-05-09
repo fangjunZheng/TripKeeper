@@ -1,8 +1,12 @@
 import { NextResponse } from 'next/server';
 import { TripImageType } from '@prisma/client';
 import { TripImageRepository } from '@/lib/db/repositories/trip-image-repository';
+import { devEnvGuard } from '@/lib/utils/dev-guard';
 
 export async function POST(request: Request) {
+  const guard = devEnvGuard();
+  if (guard) return guard;
+
   try {
     const body = (await request.json()) as { tripId?: string; type?: TripImageType; imageUrl?: string };
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 type DailySummary = {
   date: string;
@@ -11,6 +11,23 @@ type DailySummary = {
 
 type SummaryResponse =
   | { ok: true; summary: DailySummary[] }
+  | { ok: false; error: string };
+
+type Trip = {
+  id: string;
+  driverName: string;
+  licensePlate: string;
+  date: string;
+  departureLocation: string;
+  destination: string;
+  cargoType: string;
+  numberOfLoads: number;
+  totalWeight: number;
+  status: "IN_TRANSIT" | "COMPLETED";
+};
+
+type TripsListResponse =
+  | { ok: true; trips: Trip[] }
   | { ok: false; error: string };
 
 function getCurrentMonth() {
@@ -26,15 +43,24 @@ export default function MonthlyPage() {
   useEffect(() => {
     setMonth(getCurrentMonth());
   }, []);
+
   const [data, setData] = useState<DailySummary[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
 
+  // 当日记录列表
+  const [dayTrips, setDayTrips] = useState<Trip[]>([]);
+  const [dayTripsLoading, setDayTripsLoading] = useState(false);
+  const [dayTripsError, setDayTripsError] = useState<string | null>(null);
+
   useEffect(() => {
     if (!month) return;
 
     let cancelled = false;
+    setSelectedDate(null);
+    setDayTrips([]);
+
     async function load() {
       setLoading(true);
       setError(null);
@@ -69,10 +95,47 @@ export default function MonthlyPage() {
     };
   }, [month]);
 
+  // 点击柱状图后加载当日记录
+  useEffect(() => {
+    if (!selectedDate) {
+      setDayTrips([]);
+      return;
+    }
+
+    let cancelled = false;
+    async function loadDayTrips() {
+      setDayTripsLoading(true);
+      setDayTripsError(null);
+      try {
+        const res = await fetch(`/api/trips/list?date=${encodeURIComponent(selectedDate!)}`);
+        const json = (await res.json()) as TripsListResponse;
+        if (!res.ok || !json.ok) {
+          throw new Error(!json.ok ? json.error : "加载失败");
+        }
+        if (!cancelled) setDayTrips(json.trips ?? []);
+      } catch (e) {
+        if (!cancelled) {
+          setDayTripsError(e instanceof Error ? e.message : "加载失败");
+          setDayTrips([]);
+        }
+      } finally {
+        if (!cancelled) setDayTripsLoading(false);
+      }
+    }
+    loadDayTrips();
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedDate]);
+
   const maxTrips = useMemo(
     () => data.reduce((max, d) => Math.max(max, d.tripsCount), 0) || 1,
     [data],
   );
+
+  const selectedSummary = selectedDate
+    ? data.find((d) => d.date === selectedDate)
+    : null;
 
   return (
     <div className="space-y-4 pb-2">
@@ -137,17 +200,11 @@ export default function MonthlyPage() {
               })}
             </div>
 
-            {selectedDate && (
+            {selectedDate && selectedSummary && (
               <div className="rounded-2xl bg-slate-50 p-3 text-xs">
-                <p className="text-slate-500">
-                  已选日期：{selectedDate}
-                </p>
-                <p className="mt-1 text-slate-700">
-                  出车 {data.find((d) => d.date === selectedDate)?.tripsCount ?? 0} 次，
-                  总吨数 {data.find((d) => d.date === selectedDate)?.totalWeight ?? 0}
-                </p>
-                <p className="mt-1 text-slate-400">
-                  详细列表可后续接入 /api/trips/list?date=选中日期。
+                <p className="font-medium text-slate-700">{selectedDate}</p>
+                <p className="mt-1 text-slate-600">
+                  出车 {selectedSummary.tripsCount} 次 · 总吨数 {selectedSummary.totalWeight}
                 </p>
               </div>
             )}
@@ -155,10 +212,64 @@ export default function MonthlyPage() {
         )}
       </div>
 
-      <div className="rounded-3xl bg-white px-6 py-5 text-xs text-slate-500 shadow-sm ring-1 ring-slate-100">
-        这里后续可以接入点击柱子后的当日 Trip 列表，以及跳转到历史记录等功能。
-      </div>
+      {/* 当日记录列表 */}
+      {selectedDate && (
+        <div className="rounded-3xl bg-white px-6 py-5 shadow-sm ring-1 ring-slate-100">
+          <h2 className="text-sm font-semibold text-slate-900">
+            {selectedDate} 出车记录
+          </h2>
+
+          {dayTripsLoading && (
+            <p className="mt-3 text-sm text-slate-500">加载中...</p>
+          )}
+          {dayTripsError && (
+            <p className="mt-3 text-xs text-red-500">{dayTripsError}</p>
+          )}
+          {!dayTripsLoading && !dayTripsError && dayTrips.length === 0 && (
+            <p className="mt-3 text-sm text-slate-500">当天暂无记录。</p>
+          )}
+
+          <div className="mt-3 space-y-2">
+            {dayTrips.map((t) => (
+              <Link
+                key={t.id}
+                href={`/home/today/${t.id}`}
+                className="block rounded-xl border border-slate-100 p-3 transition hover:border-slate-200 hover:bg-slate-50/40"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-medium text-slate-900">
+                      {t.departureLocation} → {t.destination}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">
+                      {t.driverName} · {t.licensePlate} · {t.cargoType}
+                    </p>
+                  </div>
+                  <span
+                    className={
+                      t.status === "COMPLETED"
+                        ? "shrink-0 rounded-full bg-emerald-50 px-2 py-1 text-xs text-emerald-700"
+                        : "shrink-0 rounded-full bg-amber-50 px-2 py-1 text-xs text-amber-700"
+                    }
+                  >
+                    {t.status === "COMPLETED" ? "完成" : "运输中"}
+                  </span>
+                </div>
+                <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="text-slate-500">车数</p>
+                    <p className="mt-0.5 font-medium text-slate-900">{t.numberOfLoads}</p>
+                  </div>
+                  <div className="rounded-lg bg-slate-50 p-2">
+                    <p className="text-slate-500">总吨数</p>
+                    <p className="mt-0.5 font-medium text-slate-900">{t.totalWeight}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
-

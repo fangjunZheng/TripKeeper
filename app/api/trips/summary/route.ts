@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/auth/guards';
 import { TripRepository } from '@/lib/db/repositories/trip-repository';
+import { handleApiError } from '@/lib/api/handle-error';
 
 export async function GET(request: Request) {
   try {
@@ -19,10 +20,7 @@ export async function GET(request: Request) {
     const summary = await TripRepository.getMonthlySummary(currentUser.id, month);
     return NextResponse.json({ ok: true, summary });
   } catch (error) {
-    const status = (error as { status?: number })?.status ?? 500;
-    const message =
-      error instanceof Error ? error.message : status === 401 ? 'Unauthorized' : 'Unknown error';
-    return NextResponse.json({ ok: false, error: message }, { status });
+    return handleApiError(error);
   }
 }
 

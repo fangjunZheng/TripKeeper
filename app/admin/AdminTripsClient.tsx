@@ -2,19 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
+import type { AdminTripItem } from "@/types/api";
 
-type AdminTrip = {
-  id: string;
-  driverName: string;
-  licensePlate: string;
-  date: string; // ISO string from server
-  departureLocation: string;
-  destination: string;
-  cargoType: string;
-  totalWeight: number;
-  status: "IN_TRANSIT" | "COMPLETED";
-  images: Array<{ id: string; type: "DEPARTURE" | "ARRIVAL"; imageUrl: string }>;
-};
+type AdminTrip = AdminTripItem & { date: string };
 
 type AdminTripsClientProps = {
   initialTrips: AdminTrip[];
@@ -24,6 +14,9 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
   const [trips, setTrips] = useState<AdminTrip[]>(initialTrips);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [loadMoreLoading, setLoadMoreLoading] = useState(false);
 
   type Driver = { id: string; name: string | null; phone: string };
   const [drivers, setDrivers] = useState<Driver[]>([]);
@@ -93,56 +86,96 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
     };
   }, []);
 
-  async function runSearch(
-    next?: Partial<{
-      status: typeof status;
-      from: string;
-      to: string;
-      departureLocation: string;
-      destination: string;
-      driverId: string;
-    }>,
-  ) {
+  function buildParams(overrides?: Partial<{
+    status: typeof status;
+    from: string;
+    to: string;
+    departureLocation: string;
+    destination: string;
+    driverId: string;
+  }>, cursor?: string) {
+    const params = new URLSearchParams();
+    const s = overrides?.status ?? status;
+    const f = overrides?.from ?? from;
+    const t = overrides?.to ?? to;
+    const dep = overrides?.departureLocation ?? departureLocation;
+    const dest = overrides?.destination ?? destination;
+    const dId = overrides?.driverId ?? driverId;
+
+    if (s !== "ALL") params.set("status", s);
+    if (f) params.set("from", f);
+    if (t) params.set("to", t);
+    if (dep) params.set("departureLocation", dep);
+    if (dest) params.set("destination", dest);
+    if (dId) params.set("driverId", dId);
+    if (cursor) params.set("cursor", cursor);
+    params.set("pageSize", "50");
+    return params;
+  }
+
+  function normalizeTrips(raw: any[]): AdminTrip[] {
+    return raw.map((x) => ({
+      ...x,
+      images: x.images ?? [],
+      date: typeof x.date === "string" ? x.date : new Date(x.date).toISOString(),
+    }));
+  }
+
+  async function runSearch(overrides?: Partial<{
+    status: typeof status;
+    from: string;
+    to: string;
+    departureLocation: string;
+    destination: string;
+    driverId: string;
+  }>) {
     setLoading(true);
     setError(null);
+    setNextCursor(null);
+    setHasMore(false);
     try {
-      const params = new URLSearchParams();
-      const s = next?.status ?? status;
-      const f = next?.from ?? from;
-      const t = next?.to ?? to;
-      const dep = next?.departureLocation ?? departureLocation;
-      const dest = next?.destination ?? destination;
-      const dId = next?.driverId ?? driverId;
-
-      if (s !== "ALL") params.set("status", s);
-      if (f) params.set("from", f);
-      if (t) params.set("to", t);
-      if (dep) params.set("departureLocation", dep);
-      if (dest) params.set("destination", dest);
-      if (dId) params.set("driverId", dId);
-      params.set("limit", "50");
-
-      const url = `/api/admin/trips?${params.toString()}`;
-      const res = await fetch(url);
-      const json = (await res.json()) as { ok: boolean; trips: AdminTrip[]; error?: string };
-
-      if (!res.ok || !json.ok) {
-        throw new Error(json.error ?? "搜索失败");
-      }
-
-      // 让 date 在客户端以 string 处理
-      setTrips(
-        (json.trips ?? []).map((x: any) => ({
-          ...x,
-          images: x.images ?? [],
-          date: typeof x.date === "string" ? x.date : new Date(x.date).toISOString(),
-        })),
-      );
+      const params = buildParams(overrides);
+      const res = await fetch(`/api/admin/trips?${params.toString()}`);
+      const json = (await res.json()) as {
+        ok: boolean;
+        trips: any[];
+        hasMore: boolean;
+        nextCursor: string | null;
+        error?: string;
+      };
+      if (!res.ok || !json.ok) throw new Error(json.error ?? "搜索失败");
+      setTrips(normalizeTrips(json.trips ?? []));
+      setHasMore(json.hasMore ?? false);
+      setNextCursor(json.nextCursor ?? null);
     } catch (e) {
       setError(e instanceof Error ? e.message : "搜索失败");
       setTrips([]);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function loadMore() {
+    if (!nextCursor || loadMoreLoading) return;
+    setLoadMoreLoading(true);
+    try {
+      const params = buildParams(undefined, nextCursor);
+      const res = await fetch(`/api/admin/trips?${params.toString()}`);
+      const json = (await res.json()) as {
+        ok: boolean;
+        trips: any[];
+        hasMore: boolean;
+        nextCursor: string | null;
+        error?: string;
+      };
+      if (!res.ok || !json.ok) throw new Error(json.error ?? "加载失败");
+      setTrips((prev) => [...prev, ...normalizeTrips(json.trips ?? [])]);
+      setHasMore(json.hasMore ?? false);
+      setNextCursor(json.nextCursor ?? null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "加载失败");
+    } finally {
+      setLoadMoreLoading(false);
     }
   }
 
@@ -269,6 +302,20 @@ export default function AdminTripsClient({ initialTrips }: AdminTripsClientProps
         </div>
 
         {error && <p className="mt-3 text-xs text-red-500">{error}</p>}
+
+        {hasMore && (
+          <div className="mt-4 flex justify-center">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-9 rounded-full px-6 text-xs font-medium"
+              onClick={loadMore}
+              disabled={loadMoreLoading}
+            >
+              {loadMoreLoading ? "加载中..." : "加载更多"}
+            </Button>
+          </div>
+        )}
       </section>
 
       <section className="rounded-2xl bg-white px-5 py-4 shadow-sm ring-1 ring-slate-100">
